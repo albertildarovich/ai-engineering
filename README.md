@@ -141,4 +141,4 @@ The goal is to build a solid foundation for developing production-ready AI appli
 
 **In active development.**
 
-This
+This is an evolving educational and practical project. New features, experiments, and architectural improvements are added as learning progresses.
