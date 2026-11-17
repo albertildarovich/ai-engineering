@@ -6,6 +6,7 @@ import httpx
 from app.agent_state import AgentState
 from app.state_storage import save_state, load_state
 from app.agent_recovery import get_saved_tool_result
+from app.tools.task_tools import create_task, get_tasks
 
 MODEL = "qwen3:1.7b"
 OLLAMA_URL = "http://localhost:11434/api/chat"
@@ -36,24 +37,6 @@ def create_agent_state(user_input: str) -> AgentState:
             },
         ],
     )
-
-
-def create_task(title: str, priority: str) -> dict:
-    task = {
-        "id": len(tasks) + 1,
-        "title": title,
-        "priority": priority,
-        "completed": False,
-    }
-
-    tasks.append(task)
-
-    return task
-
-
-def get_tasks() -> list:
-    return tasks
-
 
 tools = [
     {
@@ -157,6 +140,32 @@ def execute_tool(name: str, arguments: dict):
         return get_tasks()
 
     raise ValueError(f"Unknown tool: {name}")
+
+def execute_tool_idempotently(
+    state: AgentState,
+    tool_call_id: str,
+    tool_name: str,
+    arguments: dict,
+):
+    saved_result = get_saved_tool_result(state, tool_call_id)
+
+    if saved_result is not None:
+        print(f"[IDEMPOTENCY] Reusing result: {tool_call_id}")
+        return saved_result
+
+    print(f"[IDEMPOTENCY] Executing tool: {tool_call_id}")
+
+    result = execute_tool(tool_name, arguments)
+
+    state.tool_results.append({
+        "tool_call_id": tool_call_id,
+        "tool_name": tool_name,
+        "result": result,
+    })
+
+    save_state(state)
+
+    return result
 
 
 async def ask_llm(client, messages):
